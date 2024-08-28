@@ -1,0 +1,36 @@
+// Base de datos: "ApplicationDbContext" 
+using System;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
+
+public class ReservationService
+{
+    private readonly ApplicationDbContext _context;
+
+    public ReservationService(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+    public IQueryable<SeatAvailability> GetSeatAvailabilityForToday()
+    {
+        var today = DateTime.Now.Date;
+        var seatAvailability = from room in _context.Rooms
+                               join seat in _context.Seats on room.Id equals seat.RoomId into seats
+                               from seat in seats.DefaultIfEmpty()
+                               join billboard in _context.Billboards on room.Id equals billboard.RoomId
+                               where billboard.Date == today
+                               join booking in _context.Bookings on billboard.Id equals booking.BillboardId into bookings
+                               from booking in bookings.DefaultIfEmpty()
+                               group new { seat, booking } by new { room.Id, room.Name, seat.Number, seat.RowNumber } into g
+                               select new SeatAvailability
+                               {
+                                   RoomId = g.Key.Id,
+                                   RoomName = g.Key.Name,
+                                   SeatNumber = g.Key.Number,
+                                   SeatRowNumber = g.Key.RowNumber,
+                                   OccupiedSeats = g.Count(x => x.booking != null),
+                                   AvailableSeats = g.Count() - g.Count(x => x.booking != null)
+                               };
+        return seatAvailability;
+    }
+}
