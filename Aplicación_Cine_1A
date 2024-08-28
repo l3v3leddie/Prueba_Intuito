@@ -1,0 +1,26 @@
+// Base de datos: "ApplicationDbContext"
+using System;
+using System.Linq;
+
+public class ReservationService
+{
+    private readonly ApplicationDbContext _context;
+
+    public ReservationService(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    public IQueryable<BookingEntity> GetHorrorMovieBookings(DateTime startDate, DateTime endDate)
+    {
+        var horrorMovieBookings = from booking in _context.Bookings
+                                  join billboard in _context.Billboards on booking.BillboardId equals billboard.Id
+                                  join movie in _context.Movies on billboard.MovieId equals movie.Id
+                                  where movie.Genre == MovieGenreEnum.HORROR
+                                  && billboard.Date >= startDate
+                                  && billboard.Date <= endDate
+                                  select booking;
+
+        return horrorMovieBookings;
+    }
+}
