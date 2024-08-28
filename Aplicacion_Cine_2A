@@ -1,0 +1,59 @@
+ public class CancelBookingDTO
+{
+    public int BookingId { get; set; }
+    public int SeatId { get; set; }
+}
+------------------------------------------------------------------------------------------------------
+public interface IBookingService
+{
+    void CancelBookingAndDisableSeat(CancelBookingDTO dto);
+}
+------------------------------------------------------------------------------------------------------
+using System;
+using System.Transactions;
+
+public class BookingService : IBookingService
+{
+    private readonly IBookingRepository _bookingRepository;
+    private readonly ISeatRepository _seatRepository;
+
+    public BookingService(IBookingRepository bookingRepository, ISeatRepository seatRepository)
+    {
+        _bookingRepository = bookingRepository;
+        _seatRepository = seatRepository;
+    }
+
+    public void CancelBookingAndDisableSeat(CancelBookingDTO dto)
+    {
+        using (var scope = new TransactionScope())
+        {
+            try
+            {
+                // Buscar la reserva por ID
+                var booking = _bookingRepository.GetById(dto.BookingId);
+                if (booking == null)
+                {
+                    throw new CustomException("Reserva no encontrada",400);
+                }
+
+                // Buscar butaca por ID
+                var seat = _seatRepository.GetById(dto.SeatId);
+                if (seat == null)
+                {
+                    throw new CustomException("Asiento no Encontrado",400);
+                }
+
+                // Actualizar estado
+                _bookingRepository.Delete(booking);
+                // Inhabilitar butaca
+                seat.Status = false; 
+                _seatRepository.Update(seat);
+                scope.Complete();
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("Error en la transacción", ex);
+            }
+        }
+    }
+}
